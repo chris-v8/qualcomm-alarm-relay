@@ -3,8 +3,10 @@
 # permission oplus.permission.OPLUS_COMPONENT_SAFE, so DeskClock's SET_ALARM /
 # CANCEL_ALARM broadcasts are dropped and the PMIC RTC is never armed.
 # This re-sends them as root, using DeskClock's next alarm-clock time taken
-# from AlarmManager. Triggers: DeskClock's denied broadcasts (main path),
-# boot, shutdown start, and a 30-minute re-check (safety nets).
+# from AlarmManager, or from DeskClock's own alarm instances while the user is
+# locked (before the first unlock DeskClock 2.34 registers no alarm clock and
+# only ever sends CANCEL_ALARM). Triggers: DeskClock's denied broadcasts (main
+# path), boot, shutdown start, and a 30-minute re-check (safety nets).
 
 MODDIR=${0%/*}
 LOG=$MODDIR/relay.log
@@ -25,12 +27,22 @@ notify() {
   cmd notification post -S bigtext -t "Power-off alarm relay" deskclock_relay "$1" >/dev/null 2>&1
 }
 
+# DeskClock's next alarm in epoch milliseconds; empty if none.
+# Prefers what DeskClock itself registered with AlarmManager; while the user is
+# locked (Direct Boot) DeskClock 2.34 registers nothing, so fall back to its
+# alarm instances.
+next_alarm() {
+  t=$(indicator_alarm)
+  [ -z "$t" ] && t=$(provider_alarm)
+  echo "$t"
+}
+
 # Earliest future DeskClock alarm-clock (the "indicator" alarm set via
 # setAlarmClock), in epoch milliseconds; empty if none.
 # Uses the AOSP "tag=*walarm*:indicator" line that follows each Alarm{} entry,
 # not ColorOS's extra "action ..." text, so ROM format tweaks don't break it.
 # awk does the comparison because /system/bin/sh arithmetic is 32-bit.
-next_alarm() {
+indicator_alarm() {
   dumpsys alarm | awk -v now="$(date +%s)000" -v pkg="$PKG}" '
     / origWhen [0-9]+ / && index($0, pkg) {
       for (i = 1; i < NF; i++) if ($i == "origWhen") t = $(i + 1)
@@ -43,6 +55,27 @@ next_alarm() {
     END { if (best != "") print best }'
 }
 
+# Earliest future DeskClock alarm instance, read through DeskClock's content
+# provider (it lives in device-protected storage, so this works before the first
+# unlock; root may query it although it isn't exported). States 0-2 are
+# silent/notification/snoozed, the same filter as getNextFiringAlarm(); month is
+# 0-based like java.util.Calendar.
+provider_alarm() {
+  now=$(date +%s)
+  content query --uri "content://$PKG/instances" \
+      --projection year:month:day:hour:minutes --where 'alarm_state<3' 2>/dev/null \
+    | sed -n 's/.*year=\([0-9]*\), month=\([0-9]*\), day=\([0-9]*\), hour=\([0-9]*\), minutes=\([0-9]*\).*/\1 \2 \3 \4 \5/p' \
+    | while read -r y mo d h mi; do
+        s=$(date -d "$(printf '%04d-%02d-%02d %02d:%02d:00' "$y" $((mo + 1)) "$d" "$h" "$mi")" +%s 2>/dev/null)
+        [ -n "$s" ] && [ "$s" -gt "$now" ] && echo "$s"
+      done \
+    | sort -n | head -n 1 | sed 's/$/000/'
+}
+
+locked() {
+  [ "$(getprop sys.user.0.ce_available)" != true ]
+}
+
 current_slot() {
   sed -n 's/.*name="alarm_time" value="\([0-9]*\)".*/\1/p' "$POA_PREFS" 2>/dev/null
 }
@@ -50,7 +83,7 @@ current_slot() {
 set_alarm() {  # $1 = alarm time (ms), $2 = reason
   am broadcast -a $ACT.SET_ALARM -p $POA -f 0x10000000 --el time "$1" >/dev/null 2>&1
   echo "$1" > "$STATE"
-  log "set  $1 ($(date -d @"${1%???}" '+%a %m-%d %H:%M')) slot=$(current_slot) [$2]"
+  log "set  $1 ($(date -d @"${1%???}" '+%a %m-%d %H:%M')) slot=$(current_slot) [$2]$(locked && echo ' (locked)')"
 }
 
 # Arm DeskClock's next alarm unless the slot already holds it. Never cancels:
@@ -74,8 +107,8 @@ on_set_denied() {
     set_alarm "$t" "deskclock SET"
   else
     # DeskClock asked to arm an alarm but none could be read back: the dumpsys
-    # format probably changed. Fail loudly, not silently.
-    log "ERROR: DeskClock sent SET_ALARM but no indicator alarm found in dumpsys alarm"
+    # or provider format probably changed. Fail loudly, not silently.
+    log "ERROR: DeskClock sent SET_ALARM but no alarm found in dumpsys alarm or its provider"
     notify "DeskClock set an alarm but the relay could not read its time, so the phone may NOT switch on for it. Check relay.log in /data/adb/modules/deskclock_poweroff_relay."
   fi
 }
