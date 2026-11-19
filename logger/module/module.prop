@@ -1,0 +1,6 @@
+id=qualcomm_alarm_relay_logger
+name=Qualcomm alarm relay logger
+version=v2.0
+versionCode=6
+author=Chris
+description=Optional: daily log of alarm-related events (DeskClock, power-off alarm, Doze, screen, unlock, boot reason) in /data/adb/qualcomm_alarm_relay_logs, kept 14 days. Summarise with alarm-report.sh.
