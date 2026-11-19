@@ -1,0 +1,6 @@
+id=deskclock_poweroff_relay
+name=DeskClock power-off alarm relay
+version=v1.0
+versionCode=1
+author=local
+description=Relays com.best.deskclock power-off alarms to com.qualcomm.qti.poweroffalarm (ColorOS blocks them with oplus.permission.OPLUS_COMPONENT_SAFE) so the RTC boots the phone for alarms.
