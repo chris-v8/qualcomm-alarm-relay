@@ -17,7 +17,7 @@ The relay watches for these denials and sends the request itself, as root, with 
 
 ## Requirements
 
-- Qualcomm device with `com.qualcomm.qti.poweroffalarm` (the installer checks)
+- Qualcomm device with `com.qualcomm.qti.poweroffalarm` (the installer aborts without it; installed from recovery, the relay logs it and doesn't start)
 - Root with module support: Magisk, KernelSU or APatch
 - Clock (`com.best.deskclock`) with its power-off alarm permission granted
 - Tested on: Realme GT Master Edition (RMX3363), Android 12, ColorOS 12, APatch

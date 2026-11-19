@@ -1,6 +1,6 @@
 id=qualcomm_alarm_relay
 name=Qualcomm alarm relay
-version=v2.0
-versionCode=6
+version=v2.1
+versionCode=7
 author=Chris
 description=Relays DeskClock's power-off alarm to Qualcomm's PowerOffAlarm receiver (blocked on ColorOS by oplus.permission.OPLUS_COMPONENT_SAFE), so the phone powers on for alarms.

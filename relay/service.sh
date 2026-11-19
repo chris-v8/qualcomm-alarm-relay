@@ -151,6 +151,13 @@ on_cancel_denied() {
 }
 
 until [ "$(getprop sys.boot_completed)" = 1 ]; do sleep 2; done
+
+# Nothing to relay to without Qualcomm's PowerOffAlarm (the installer checks
+# too, but can't when the module is installed from recovery)
+if ! pm path "$POA" >/dev/null 2>&1; then
+  log "$POA not found: no Qualcomm power-off alarm on this device, relay not started"
+  exit 0
+fi
 log "started"
 
 # DeskClock re-registers its alarms some time after boot (in the test boot
