@@ -7,8 +7,10 @@ set -eu
 cd "$(dirname "$0")"
 mkdir -p dist
 
+# pack DIR OUT: OUT is relative to the repo root (native Windows Python can't
+# open Git Bash paths like /c/dev/..., so it only ever gets relative ones)
 if command -v zip >/dev/null 2>&1; then
-  pack() { (cd "$1" && zip -qr -X "$2" .); }
+  pack() { out="$PWD/$2"; (cd "$1" && zip -qr -X "$out" .); }
 else
   PY=$(command -v python3 || command -v python) \
     || { echo "need zip or python" >&2; exit 1; }
@@ -29,7 +31,7 @@ fi
 build() {  # $1 = module dir, $2 = zip name prefix
   [ -f "$1/module.prop" ] || return 0
   ver=$(sed -n 's/^version=//p' "$1/module.prop")
-  out="$PWD/dist/$2-$ver.zip"
+  out="dist/$2-$ver.zip"
   rm -f "$out"
   pack "$1" "$out"
   echo "built dist/$2-$ver.zip"
