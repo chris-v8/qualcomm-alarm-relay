@@ -126,7 +126,7 @@ on_set_denied() {
     # DeskClock asked to arm an alarm but none could be read back: the dumpsys
     # or provider format probably changed. Fail loudly, not silently.
     log "ERROR: DeskClock sent SET_ALARM but no alarm found in dumpsys alarm or its provider"
-    notify "DeskClock set an alarm but the relay could not read its time, so the phone may NOT switch on for it. Check relay.log in /data/adb/modules/deskclock_poweroff_relay."
+    notify "DeskClock set an alarm but the relay could not read its time, so the phone may NOT switch on for it. Check relay.log in /data/adb/modules/qualcomm_alarm_relay."
   fi
 }
 
