@@ -21,6 +21,7 @@ log() {
   echo "$(date '+%m-%d %H:%M:%S') $*" >> "$LOG"
   # keep the log small
   [ "$(wc -l < "$LOG")" -gt 400 ] && tail -n 200 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+  return 0   # callers use the status of their last command; logging never fails them
 }
 
 notify() {
@@ -76,6 +77,18 @@ locked() {
   [ "$(getprop sys.user.0.ce_available)" != true ]
 }
 
+# Does DeskClock have any alarm instance still to fire? Raw provider check, no
+# time parsing, so it tells "nothing pending" apart from "couldn't read it".
+# Prints yes, no, or unknown (provider query failed).
+pending_instances() {
+  out=$(content query --uri "content://$PKG/instances" --projection _id --where 'alarm_state<3' 2>&1)
+  case "$out" in
+    *"Row:"*) echo yes ;;
+    *"No result found"*) echo no ;;
+    *) echo unknown ;;
+  esac
+}
+
 current_slot() {
   sed -n 's/.*name="alarm_time" value="\([0-9]*\)".*/\1/p' "$POA_PREFS" 2>/dev/null
 }
@@ -105,6 +118,10 @@ on_set_denied() {
   [ -z "$t" ] && sleep 5 && t=$(next_alarm)
   if [ -n "$t" ]; then
     set_alarm "$t" "deskclock SET"
+  elif [ "$(pending_instances)" = no ]; then
+    # The alarm was dismissed or disabled right after it was set (e.g. toggled
+    # in the UI); its CANCEL_ALARM follows and is handled there.
+    log "no DeskClock alarm pending anymore, nothing to arm [deskclock SET]"
   else
     # DeskClock asked to arm an alarm but none could be read back: the dumpsys
     # or provider format probably changed. Fail loudly, not silently.
