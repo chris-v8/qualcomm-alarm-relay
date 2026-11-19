@@ -1,3 +1,4 @@
 # Module files run on Android: always LF, whatever core.autocrlf says
 * text=auto eol=lf
 *.zip binary
+*.cmd text eol=crlf

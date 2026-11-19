@@ -75,6 +75,8 @@ Thu 11-19  07:10:00 07:10:01     +1 s  locked             -           dismissed
 
 Needs `adb`, root on the phone, and GNU awk (`gawk`).
 
+On Windows, `logger\alarm-report.cmd` runs the script through Git Bash (Git for Windows). Add the `logger` folder to your PATH and type `alarm-report` (or `alarm-report 14`) in CMD or PowerShell.
+
 ## Build
 
 ```
